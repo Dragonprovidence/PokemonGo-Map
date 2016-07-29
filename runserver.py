@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 import time
+import requests
 
 from threading import Thread
 from flask_cors import CORS
@@ -83,6 +84,11 @@ if __name__ == '__main__':
         search_thread.start()
 
     app = Pogom(__name__)
+
+    if args.tport:
+        requests.post('http://localhost:' + args.tport + '/add_worker', data = {'port':args.port})
+    else:
+        app.init_queue(args.port)
 
     if args.cors:
         CORS(app);

@@ -3,7 +3,9 @@
 
 import calendar
 import logging
+import requests
 
+from requests.exceptions import ConnectionError
 from flask import Flask, jsonify, render_template, request
 from flask.json import JSONEncoder
 from flask_compress import Compress
@@ -16,6 +18,7 @@ from .models import Pokemon, Gym, Pokestop, ScannedLocation
 
 log = logging.getLogger(__name__)
 compress = Compress()
+worker_queue = []
 
 
 class Pogom(Flask):
@@ -28,7 +31,9 @@ class Pogom(Flask):
         self.route("/loc", methods=['GET'])(self.loc)
         self.route("/next_loc", methods=['POST'])(self.next_loc)
         self.route("/mobile", methods=['GET'])(self.list_pokemon)
-
+        self.route("/add_worker", methods=['POST'])(self.add_worker)
+        self.route("/next_worker", methods=['POST'])(self.next_worker)
+        
     def fullmap(self):
         args = get_args()
         display = "inline"
@@ -75,6 +80,43 @@ class Pogom(Flask):
         d['lng'] = config['ORIGINAL_LONGITUDE']
 
         return jsonify(d)
+
+    @staticmethod
+    def init_queue(host_port):
+        worker_queue.append(host_port)
+        log.info("Host set on port: " + str(worker_queue[0]))
+
+    @staticmethod
+    def del_worker(port):
+        worker_queue.remove(port)
+        log.info('Worker has been removed: ' + str(port))
+
+    def add_worker(self):
+        worker_queue.append(request.form.get('port'))
+        log.info('Worker added to queue')
+        return 'ok'
+    
+    def next_worker(self):
+         # part of query string
+        if request.args:
+            lat = request.args.get('lat', type=float)
+            lon = request.args.get('lon', type=float)
+        # from post requests
+        if request.form:
+            lat = request.form.get('lat', type=float)
+            lon = request.form.get('lon', type=float)
+        
+        try:
+            requests.post('http://localhost:' + str(worker_queue[0]) + '/next_loc', data ={'lat':lat,'lon':lon})
+        except ConnectionError as e:
+            log.error('Connection to worker failed')
+            self.del_worker(worker_queue[0])
+            config['NEXT_LOCATION'] = {'lat': lat, 'lon': lon}
+            log.info('Changing next location: %s,%s' % (lat, lon))
+            return 'ConnectionError'
+
+        worker_queue.append(worker_queue.pop(0))
+        return 'ok'
 
     def next_loc(self):
         args = get_args()

@@ -1,4 +1,3 @@
-
 //
 // Global map.js variables
 //
@@ -11,6 +10,10 @@ var idToPokemon = {};
 
 var excludedPokemon = [];
 var notifiedPokemon = [];
+
+var common = [10,11,12,13,14,15,16,17,18,19,20,21,22,41,42,46,47,48,49,84,85];
+var starters = [1,2,3,4,5,6,7,8,9 ];
+var rare = [37,38,58,59,83,92,93,94,95,106,107,108,122,123,124,125,126,128,130,131,137,138,139,140,141,142,143,147,148,149];
 
 var map;
 var rawDataIsLoading = false;
@@ -1099,6 +1102,10 @@ $(function() {
   }
 });
 
+function filterPokeList(value){
+	return Number(value);
+}
+
 $(function() {
   function formatState(state) {
     if (!state.id) {
@@ -1113,14 +1120,14 @@ $(function() {
   $selectExclude = $("#exclude-pokemon");
   $selectNotify = $("#notify-pokemon");
   var numberOfPokemon = 151;
-
+  
   // Load pokemon names and populate lists
   $.getJSON("static/locales/pokemon." + language + ".json").done(function(data) {
     var pokeList = [];
 
     idToPokemon = data;
 
-    $.each(data, function(key, value) {
+	$.each(data, function(key, value) {
       if (key > numberOfPokemon) {
         return false;
       }
@@ -1144,13 +1151,27 @@ $(function() {
 
     // setup list change behavior now that we have the list to work from
     $selectExclude.on("change", function(e) {
-      excludedPokemon = $selectExclude.val().map(Number);
+		//console.log($selectExclude.val());
+		excludedPokemon = $selectExclude.val().map(Number).filter(filterPokeList);
+		if($selectExclude.val().includes('A'))
+		excludedPokemon = excludedPokemon.concat(common);
+		if($selectExclude.val().includes('B'))
+		excludedPokemon = excludedPokemon.concat(starters);
+		if($selectExclude.val().includes('C'))
+		excludedPokemon = excludedPokemon.concat(rare);
+		//console.log(excludedPokemon);
       clearStaleMarkers();
-      Store.set('remember_select_exclude', excludedPokemon);
+      Store.set('remember_select_exclude', $selectExclude.val());
     });
     $selectNotify.on("change", function(e) {
-      notifiedPokemon = $selectNotify.val().map(Number);
-      Store.set('remember_select_notify', notifiedPokemon);
+      notifiedPokemon = $selectNotify.val().map(Number).filter(filterPokeList);
+			if($selectNotify.val().includes('A'))
+				notifiedPokemon = notifiedPokemon.concat(common);
+			if($selectNotify.val().includes('B'))
+				notifiedPokemon = notifiedPokemon.concat(starters);
+			if($selectNotify.val().includes('C'))
+				notifiedPokemon = notifiedPokemon.concat(rare);
+      Store.set('remember_select_notify', $selectNotify.val());
     });
 
     // recall saved lists
